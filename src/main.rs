@@ -1,10 +1,19 @@
-use anyhow::Result;
+use std::{
+    fs::{self, File},
+    io,
+};
+
+use ::zip::ZipArchive;
+use anyhow::{anyhow, Result};
 use lapce_plugin::{
     psp_types::{
-        lsp_types::{request::Initialize, DocumentFilter, DocumentSelector, InitializeParams, Url},
+        lsp_types::{
+            request::Initialize, DocumentFilter, DocumentSelector, InitializeParams, MessageType,
+            Url,
+        },
         Request,
     },
-    register_plugin, LapcePlugin, VoltEnvironment, PLUGIN_RPC,
+    register_plugin, Http, LapcePlugin, VoltEnvironment, PLUGIN_RPC,
 };
 use serde_json::Value;
 
@@ -13,26 +22,65 @@ struct State {}
 
 register_plugin!(State);
 
+macro_rules! string {
+    ( $x:expr ) => {
+        String::from($x)
+    };
+}
+
 fn initialize(params: InitializeParams) -> Result<()> {
-    let document_selector: DocumentSelector = vec![DocumentFilter {
-        // lsp language id
-        language: Some(String::from("language_id")),
-        // glob pattern
-        pattern: Some(String::from("**/*.{ext1,ext2}")),
-        // like file:
-        scheme: None,
-    }];
+    let document_selector: DocumentSelector = vec![
+        DocumentFilter {
+            language: Some(String::from("javascript")),
+            pattern: Some(String::from("**/*.js")),
+            scheme: None,
+        },
+        DocumentFilter {
+            language: Some(String::from("javascriptreact")),
+            pattern: Some(String::from("**/*.jsx")),
+            scheme: None,
+        },
+        DocumentFilter {
+            language: Some(String::from("jsx")),
+            pattern: Some(String::from("**/*.jsx")),
+            scheme: None,
+        },
+        DocumentFilter {
+            language: Some(String::from("typescript")),
+            pattern: Some(String::from("**/*.ts")),
+            scheme: None,
+        },
+        DocumentFilter {
+            language: Some(String::from("typescriptreact")),
+            pattern: Some(String::from("**/*.tsx")),
+            scheme: None,
+        },
+        DocumentFilter {
+            language: Some(String::from("tsx")),
+            pattern: Some(String::from("**/*.tsx")),
+            scheme: None,
+        },
+        DocumentFilter {
+            language: Some(String::from("json")),
+            pattern: Some(String::from("**/*.json")),
+            scheme: None,
+        },
+        DocumentFilter {
+            language: Some(String::from("jsonc")),
+            pattern: Some(String::from("**/*.jsonc")),
+            scheme: None,
+        },
+        DocumentFilter {
+            language: Some(String::from("markdown")),
+            pattern: Some(String::from("**/*.{md,markdown}")),
+            scheme: None,
+        },
+    ];
     let mut server_args = vec![];
 
-    // Check for user specified LSP server path
-    // ```
-    // [lapce-plugin-name.lsp]
-    // serverPath = "[path or filename]"
-    // serverArgs = ["--arg1", "--arg2"]
-    // ```
     if let Some(options) = params.initialization_options.as_ref() {
-        if let Some(lsp) = options.get("lsp") {
-            if let Some(args) = lsp.get("serverArgs") {
+        if let Some(volt) = options.get("volt") {
+            if let Some(args) = volt.get("serverArgs") {
                 if let Some(args) = args.as_array() {
                     if !args.is_empty() {
                         server_args = vec![];
@@ -45,7 +93,7 @@ fn initialize(params: InitializeParams) -> Result<()> {
                 }
             }
 
-            if let Some(server_path) = lsp.get("serverPath") {
+            if let Some(server_path) = volt.get("serverPath") {
                 if let Some(server_path) = server_path.as_str() {
                     if !server_path.is_empty() {
                         let server_uri = Url::parse(&format!("urn:{}", server_path))?;
@@ -62,42 +110,61 @@ fn initialize(params: InitializeParams) -> Result<()> {
         }
     }
 
-    // Architecture check
-    let _ = match VoltEnvironment::architecture().as_deref() {
-        Ok("x86_64") => "x86_64",
-        Ok("aarch64") => "aarch64",
-        _ => return Ok(()),
+    let filename = match (
+        VoltEnvironment::operating_system().as_deref(),
+        VoltEnvironment::architecture().as_deref(),
+        VoltEnvironment::libc().as_deref(),
+    ) {
+        (Ok("macos"), Ok("x86_64"), _) => "x86_64-apple-darwin",
+        (Ok("macos"), Ok("aarch64"), _) => "aarch64-apple-darwin",
+        (Ok("linux"), Ok("x86_64"), Ok("glibc")) => "x86_64-unknown-linux-gnu",
+        (Ok("windows"), Ok("x86_64"), _) => "x86_64-pc-windows-msvc",
+        _ => return Err(anyhow!("Unsupported OS/Arch/Libc")),
     };
 
-    // OS check
-    let _ = match VoltEnvironment::operating_system().as_deref() {
-        Ok("macos") => "macos",
-        Ok("linux") => "linux",
-        Ok("windows") => "windows",
-        _ => return Ok(()),
-    };
+    let zip_file = format!("deno-{filename}.zip");
 
     // Download URL
-    // let _ = format!("https://github.com/<name>/<project>/releases/download/<version>/{filename}");
+    let url = format!("https://github.com/denoland/deno/releases/download/v1.26.2/{zip_file}");
 
-    // see lapce_plugin::Http for available API to download files
+    let mut resp = Http::get(&url)?;
+    if resp.status_code.is_success() {
+        let body = resp.body_read_all()?;
+        std::fs::write(&zip_file, body)?;
 
-    let _ = match VoltEnvironment::operating_system().as_deref() {
-        Ok("windows") => {
-            format!("{}.exe", "[filename]")
+        let mut zip = ZipArchive::new(File::open(&zip_file)?)?;
+
+        for i in 0..zip.len() {
+            let mut file = zip.by_index(i)?;
+            let outpath = match file.enclosed_name() {
+                Some(path) => path.to_owned(),
+                None => continue,
+            };
+
+            if (*file.name()).ends_with('/') {
+                fs::create_dir_all(&outpath)?;
+            } else {
+                if let Some(p) = outpath.parent() {
+                    if !p.exists() {
+                        fs::create_dir_all(&p)?;
+                    }
+                }
+                let mut outfile = File::create(&outpath)?;
+                io::copy(&mut file, &mut outfile)?;
+            }
         }
-        _ => "[filename]".to_string(),
+    }
+
+    let filename = match VoltEnvironment::operating_system().as_deref() {
+        Ok("windows") => {
+            string!("deno.exe")
+        }
+        _ => string!("deno"),
     };
 
-    // Plugin working directory
     let volt_uri = VoltEnvironment::uri()?;
-    let server_path = Url::parse(&volt_uri)?.join("[filename]")?;
+    let server_path = Url::parse(&volt_uri)?.join(&filename)?;
 
-    // if you want to use server from PATH
-    // let server_path = Url::parse(&format!("urn:{filename}"))?;
-
-    // Available language IDs
-    // https://github.com/lapce/lapce/blob/HEAD/lapce-proxy/src/buffer.rs#L173
     PLUGIN_RPC.start_lsp(
         server_path,
         server_args,
@@ -115,7 +182,8 @@ impl LapcePlugin for State {
             Initialize::METHOD => {
                 let params: InitializeParams = serde_json::from_value(params).unwrap();
                 if let Err(e) = initialize(params) {
-                    PLUGIN_RPC.stderr(&format!("plugin returned with error: {e}"))
+                    PLUGIN_RPC.window_log_message(MessageType::ERROR, e.to_string());
+                    PLUGIN_RPC.window_show_message(MessageType::ERROR, e.to_string());
                 }
             }
             _ => {}

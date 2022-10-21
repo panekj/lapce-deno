@@ -1,10 +1,23 @@
-name = "<plugin-name>"
+name = "lapce-deno"
 version = "0.0.0"
-author = "<your name>"
-display-name = "<plugin-display-name>"
-description = "<plugin-description>"
-wasm = "bin/<plugin-name>.wasm"
+author = "panekj"
+display-name = "Deno"
+description = "Deno"
+wasm = "bin/lapce-deno.wasm"
 
 [activation]
-language = []
+language = [
+  "javascript",
+  "javascriptreact",
+  "jsx",
+  "typescript",
+  "typescriptreact",
+  "tsx",
+  "markdown",
+  "json",
+  "jsonc",
+]
 workspace-contains = []
+
+[config."volt.serverArgs"]
+default = ["lsp"]
