@@ -76,7 +76,7 @@ fn initialize(params: InitializeParams) -> Result<()> {
             scheme: None,
         },
     ];
-    let mut server_args = vec![];
+    let mut server_args = vec![string!("lsp")];
 
     if let Some(options) = params.initialization_options.as_ref() {
         if let Some(volt) = options.get("volt") {
