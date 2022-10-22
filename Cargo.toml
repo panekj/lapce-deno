@@ -5,7 +5,7 @@ version = "0.0.0"
 resolver = "2"
 
 [target.'cfg(target_os = "wasi")'.dependencies]
-zip = { version = "0.6.0", default-features = false, features = ["deflate"] }
+zip = { version = "0.6", default-features = false, features = ["deflate"] }
 
 # default deps for all lapce plugins
 anyhow = "1.0"

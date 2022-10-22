@@ -17,7 +17,7 @@ language = [
   "json",
   "jsonc",
 ]
-workspace-contains = []
+# workspace-contains = []
 
-[config."volt.serverArgs"]
-default = ["lsp"]
+# [config."volt.serverArgs"]
+# default = ["lsp"]
