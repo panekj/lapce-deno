@@ -3,7 +3,7 @@ version = "0.0.0"
 author = "panekj"
 display-name = "Deno"
 description = "Deno"
-wasm = "bin/lapce-deno.wasm"
+wasm = "lapce-deno.wasm"
 
 [activation]
 language = [
@@ -19,5 +19,74 @@ language = [
 ]
 # workspace-contains = []
 
-# [config."volt.serverArgs"]
-# default = ["lsp"]
+[config."volt.serverPath"]
+default = ""
+description = "Path to Deno LSP executable"
+
+[config."volt.serverArgs"]
+default = ["lsp"]
+description = "Arguments to pass to Deno LSP"
+
+[config."deno.enable"]
+default = false
+description = "Whether to enable Deno LSP"
+
+# [config."deno.enablePaths"]
+# default = []
+
+# [config."deno.cache"]
+# default = ""
+
+# [config."deno.certificateStores"]
+# default = []
+
+# [config."deno.config"]
+# default = {}
+
+# [config."deno.importMap"]
+# default = {}
+
+# [config."deno.internalDebug"]
+# default = false
+
+# [config."deno.codeLens.implementations"]
+# default = []
+
+# [config."deno.codeLens.references"]
+# default = []
+
+# [config."deno.codeLens.referencesAllFunctions"]
+# default = []
+
+# [config."deno.codeLens.test"]
+# default = []
+
+# [config."deno.suggest.completeFunctionCalls"]
+# default = true
+
+# [config."deno.suggest.names"]
+# default = []
+
+# [config."deno.suggest.paths"]
+# default = []
+
+# [config."deno.suggest.autoImports"]
+# default = []
+
+# [config."deno.suggest.imports.autoDiscover"]
+# default = []
+
+# [config."deno.suggest.imports.hosts"]
+# default = []
+
+# [config."deno.lint"]
+# default = true
+
+# [config."deno.tlsCertificate"]
+# default = ""
+
+# [config."deno.unsafelyIgnoreCertificateErrors"]
+# default = false
+
+# [config."deno.unstable"]
+# default = false

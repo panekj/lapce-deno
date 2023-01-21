@@ -3,7 +3,6 @@ use std::{
     io,
 };
 
-use ::zip::ZipArchive;
 use anyhow::{anyhow, Result};
 use lapce_plugin::{
     psp_types::{
@@ -15,7 +14,8 @@ use lapce_plugin::{
     },
     register_plugin, Http, LapcePlugin, VoltEnvironment, PLUGIN_RPC,
 };
-use serde_json::Value;
+use serde_json::{Map, Value};
+use zip::ZipArchive;
 
 #[derive(Default)]
 struct State {}
@@ -28,57 +28,64 @@ macro_rules! string {
     };
 }
 
+const DENO_VERSION: &str = "1.29.4";
+
 fn initialize(params: InitializeParams) -> Result<()> {
     let document_selector: DocumentSelector = vec![
         DocumentFilter {
-            language: Some(String::from("javascript")),
-            pattern: Some(String::from("**/*.js")),
+            language: Some(string!("javascript")),
+            pattern: Some(string!("**/*.js")),
             scheme: None,
         },
         DocumentFilter {
-            language: Some(String::from("javascriptreact")),
-            pattern: Some(String::from("**/*.jsx")),
+            language: Some(string!("javascriptreact")),
+            pattern: Some(string!("**/*.jsx")),
             scheme: None,
         },
         DocumentFilter {
-            language: Some(String::from("jsx")),
-            pattern: Some(String::from("**/*.jsx")),
+            language: Some(string!("jsx")),
+            pattern: Some(string!("**/*.jsx")),
             scheme: None,
         },
         DocumentFilter {
-            language: Some(String::from("typescript")),
-            pattern: Some(String::from("**/*.ts")),
+            language: Some(string!("typescript")),
+            pattern: Some(string!("**/*.ts")),
             scheme: None,
         },
         DocumentFilter {
-            language: Some(String::from("typescriptreact")),
-            pattern: Some(String::from("**/*.tsx")),
+            language: Some(string!("typescriptreact")),
+            pattern: Some(string!("**/*.tsx")),
             scheme: None,
         },
         DocumentFilter {
-            language: Some(String::from("tsx")),
-            pattern: Some(String::from("**/*.tsx")),
+            language: Some(string!("tsx")),
+            pattern: Some(string!("**/*.tsx")),
             scheme: None,
         },
         DocumentFilter {
-            language: Some(String::from("json")),
-            pattern: Some(String::from("**/*.json")),
+            language: Some(string!("json")),
+            pattern: Some(string!("**/*.json")),
             scheme: None,
         },
         DocumentFilter {
-            language: Some(String::from("jsonc")),
-            pattern: Some(String::from("**/*.jsonc")),
+            language: Some(string!("jsonc")),
+            pattern: Some(string!("**/*.jsonc")),
             scheme: None,
         },
         DocumentFilter {
-            language: Some(String::from("markdown")),
-            pattern: Some(String::from("**/*.{md,markdown}")),
+            language: Some(string!("markdown")),
+            pattern: Some(string!("**/*.{md,markdown}")),
             scheme: None,
         },
     ];
     let mut server_args = vec![string!("lsp")];
+    let mut initialization_options = Some(Value::Object(Map::new()));
 
     if let Some(options) = params.initialization_options.as_ref() {
+        if let Some(deno) = options.get("deno") {
+            initialization_options = Some(deno.to_owned());
+        }
+
         if let Some(volt) = options.get("volt") {
             if let Some(args) = volt.get("serverArgs") {
                 if let Some(args) = args.as_array() {
@@ -101,7 +108,7 @@ fn initialize(params: InitializeParams) -> Result<()> {
                             server_uri,
                             server_args,
                             document_selector,
-                            params.initialization_options,
+                            initialization_options,
                         );
                         return Ok(());
                     }
@@ -109,6 +116,13 @@ fn initialize(params: InitializeParams) -> Result<()> {
             }
         }
     }
+
+    // let mut response = Http::get("https://api.github.com/repos/denoland/deno/releases/latest")?;
+    // if response.status_code.is_success() {
+    //     let body = response.body_read_all()?;
+    //     let release = serde_json::from_slice(&body)?;
+    //     release
+    // }
 
     let filename = match (
         VoltEnvironment::operating_system().as_deref(),
@@ -125,7 +139,8 @@ fn initialize(params: InitializeParams) -> Result<()> {
     let zip_file = format!("deno-{filename}.zip");
 
     // Download URL
-    let url = format!("https://github.com/denoland/deno/releases/download/v1.26.2/{zip_file}");
+    let url =
+        format!("https://github.com/denoland/deno/releases/download/v{DENO_VERSION}/{zip_file}");
 
     let mut resp = Http::get(&url)?;
     if resp.status_code.is_success() {
@@ -146,7 +161,7 @@ fn initialize(params: InitializeParams) -> Result<()> {
             } else {
                 if let Some(p) = outpath.parent() {
                     if !p.exists() {
-                        fs::create_dir_all(&p)?;
+                        fs::create_dir_all(p)?;
                     }
                 }
                 let mut outfile = File::create(&outpath)?;
@@ -156,20 +171,18 @@ fn initialize(params: InitializeParams) -> Result<()> {
     }
 
     let filename = match VoltEnvironment::operating_system().as_deref() {
-        Ok("windows") => {
-            string!("deno.exe")
-        }
+        Ok("windows") => string!("deno.exe"),
         _ => string!("deno"),
     };
 
     let volt_uri = VoltEnvironment::uri()?;
-    let server_path = Url::parse(&volt_uri)?.join(&filename)?;
+    let server_uri = Url::parse(&volt_uri)?.join(&filename)?;
 
     PLUGIN_RPC.start_lsp(
-        server_path,
+        server_uri,
         server_args,
         document_selector,
-        params.initialization_options,
+        initialization_options,
     );
 
     Ok(())
