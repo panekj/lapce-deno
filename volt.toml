@@ -1,34 +1,44 @@
-name = "lapce-deno"
-version = "0.0.0"
-author = "panekj"
 display-name = "Deno"
-description = "Deno"
+name         = "lapce-deno"
+
+author      = "panekj"
+description = "TypeScript, JavaScript and Markdown language support via Deno LSP"
+repository  = "https://github.com/panekj/lapce-deno.git"
+version     = "0.0.1+deno.1.41.0"
+
+icon = "logo.svg"
 wasm = "lapce-deno.wasm"
 
 [activation]
 language = [
   "javascript",
   "javascriptreact",
-  "jsx",
-  "typescript",
-  "typescriptreact",
-  "tsx",
-  "markdown",
   "json",
   "jsonc",
+  "jsx",
+  "markdown",
+  "tsx",
+  "typescript",
+  "typescriptreact",
 ]
-# workspace-contains = []
+workspace-contains = [
+  "**/*.js",
+  "**/*.jsx",
+  "**/*.ts",
+  "**/*.tsx",
+  "/package.json",
+]
 
 [config."volt.serverPath"]
-default = ""
+default     = ""
 description = "Path to Deno LSP executable"
 
 [config."volt.serverArgs"]
-default = ["lsp"]
+default     = [ "lsp" ]
 description = "Arguments to pass to Deno LSP"
 
 [config."deno.enable"]
-default = false
+default     = true
 description = "Whether to enable Deno LSP"
 
 # [config."deno.enablePaths"]

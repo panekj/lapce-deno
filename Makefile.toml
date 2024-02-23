@@ -1,11 +1,6 @@
 [tasks.default]
 clear = true
-dependencies = [
-  "fmt",
-  "check",
-  "clippy",
-  "release",
-]
+dependencies = ["fmt", "check", "clippy", "release"]
 
 [tasks.fmt]
 command = "cargo"
